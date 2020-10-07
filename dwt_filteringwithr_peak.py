@@ -11,7 +11,7 @@ endSamp = 120000
 N = endSamp - startSamp
 
 os.chdir('C:/Users/matth/PycharmProjects/pythonProject2/mit-bih-noise-stress-test-database-1.0.0')
-sig, fields = wfdb.rdsamp('118e06', channels=[1], sampfrom=startSamp, sampto=endSamp)
+sig, fields = wfdb.rdsamp('118e12', channels=[1], sampfrom=startSamp, sampto=endSamp)
 sig2 = sig.flatten()
 fs = fields.get('fs')
 
@@ -77,14 +77,12 @@ plt.title('Clean Signal')
 # time_values = list(0:N)
 
 # maxima (list) -- contains all of the maximas in the clean signal // using the scipy.signal.find_peaks function
-maxima = scipy.signal.find_peaks(denoised)
+
+interval = .2 * fs
+maxima = scipy.signal.find_peaks(denoised, prominence=1.1, distance=interval)
 maxima = np.asarray(maxima)
 maxima = maxima[0]
 maxima = maxima.tolist()
-
-# window_int = 0.5 * fs
-# window1 = denoised[0:window_int]
-# window2 = denoised[window_int:window_int*2]
 
 
 # list that contains all of the minima in the clean signal // couldn't use scipy.signal.argrelmin because it wouldn't
@@ -107,43 +105,33 @@ extrema.sort()
 # loop through all values, finding the characteristic drop after the R peak. The 0.5 is arbitrary and should be changed?
 # and the rise in values before the r peak
 # put all r_peak time values in probable peak list
-L = len(extrema)
-y = 1
-probable_peaks = list()
-for t in extrema[1:L - 1]:
-    t2 = extrema[y + 1]
-    t0 = extrema[y - 1]
-    if denoised[t] - denoised[t2] > 0.5 and denoised[t] - denoised[t0] > 1.4:  # need a threshold? value
-        probable_peaks.append(t)
-    y = y + 1
+
+# L = len(extrema)
+# y = 1
+# probable_peaks = list()
+# for t in extrema[1:L - 1]:
+#     t2 = extrema[y + 1]
+#     t0 = extrema[y - 1]
+#     if denoised[t] - denoised[t2] > 0.5 and denoised[t] - denoised[t0] > 0.5:  # need a threshold? value
+#         probable_peaks.append(t)
+#     y = y + 1
 
 # after a QRS complex is detected, there is a 200 ms refractory period before the next one can be detected
 # the remaining false positive peaks were the little peaks at point Q, before the R peak
 # put all of the r_peak values in definitive peaks list
-N = len(probable_peaks)
-definitive_peaks = list()
-interval = .2 * fs
-y = 1
+# N = len(probable_peaks)
+# definitive_peaks = list()
+# y = 1
 
-for g in probable_peaks[1:N - 1]:
-    g0 = probable_peaks[y-1]
-    g2 = probable_peaks[y + 1]
-
-    if (g2 - g) < interval or (g-g0) < interval:
-        if (g2 - g) < interval:
-            if denoised[g] > denoised[g2]:
-                definitive_peaks.append(g)
-        else:  # or (g - g0) < interval
-            if denoised[g] > denoised[g0]:
-                definitive_peaks.append(g)
-
-    else:
-        definitive_peaks.append(g)
-    y = y + 1
-definitive_peaks.append(probable_peaks[0])
-definitive_peaks.append(g2)  # the last peak was often left out, because of the loop and this was the only solution i
+probable_peaks = maxima
 # could think of. shouldnt be a problem if were doing continuous monitoring, so i guess this can be commented out
-# definitive_peaks = probable_peaks
+prominence = scipy.signal.peak_prominences(denoised, probable_peaks)
+prominence = np.asarray(prominence)
+prominence = prominence[0]
+prominence = prominence.tolist()
+
+
+definitive_peaks = probable_peaks
 fig2.add_subplot(4, 1, 4)
 # display the plot of the clean signal, using red dots to identify the peaks
 plt.plot(denoised)
@@ -153,4 +141,6 @@ plt.title('Detected R-peaks')
 
 fig2.tight_layout(pad=4.0)
 
+print(prominence)
+print(probable_peaks)
 plt.show()
