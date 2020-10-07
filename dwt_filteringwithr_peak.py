@@ -6,7 +6,6 @@ import wfdb
 import pywt
 import scipy.signal
 
-
 startSamp = 110000
 endSamp = 120000
 N = endSamp - startSamp
@@ -75,23 +74,30 @@ plt.title('Clean Signal')
 
 # plt.show()
 
+# time_values = list(0:N)
+
 # maxima (list) -- contains all of the maximas in the clean signal // using the scipy.signal.find_peaks function
 maxima = scipy.signal.find_peaks(denoised)
 maxima = np.asarray(maxima)
 maxima = maxima[0]
 maxima = maxima.tolist()
 
+# window_int = 0.5 * fs
+# window1 = denoised[0:window_int]
+# window2 = denoised[window_int:window_int*2]
+
+
 # list that contains all of the minima in the clean signal // couldn't use scipy.signal.argrelmin because it wouldn't
 # catch the minima where there is consecutive voltage readings
 # read the clean signal data and find minima comparing neighboring values two spaces apart.
 minima = list()
 y = 0
-for i in denoised[1:N-1]:
+for i in denoised[1:N - 1]:
 
-    if i < denoised[y-2] and i < denoised[y+2]:
+    if i < denoised[y - 2] and i < denoised[y + 2]:
         minima.append(y)
 
-    y = y+1
+    y = y + 1
 
 # combine min and max list and sort
 extrema = minima + maxima
@@ -106,28 +112,38 @@ y = 1
 probable_peaks = list()
 for t in extrema[1:L - 1]:
     t2 = extrema[y + 1]
-    t0 = extrema[y-1]
-    if denoised[t]-denoised[t2] > 0.5 and denoised[t]-denoised[t0] > 0.5:  # need a threshold? value
+    t0 = extrema[y - 1]
+    if denoised[t] - denoised[t2] > 0.5 and denoised[t] - denoised[t0] > 1.4:  # need a threshold? value
         probable_peaks.append(t)
     y = y + 1
-
 
 # after a QRS complex is detected, there is a 200 ms refractory period before the next one can be detected
 # the remaining false positive peaks were the little peaks at point Q, before the R peak
 # put all of the r_peak values in definitive peaks list
-# N = len(probable_peaks)
-# definitive_peaks = list()
-# y = 0
-# for g in probable_peaks[0:N-1]:
-#     g2 = probable_peaks[y + 1]
-# 
-#     if (g2 - g) > 150:  # 150 is an arbitrary number that worked for 118 and 119, should probably be changed
-#         definitive_peaks.append(g)
-#     y = y + 1
+N = len(probable_peaks)
+definitive_peaks = list()
+interval = .2 * fs
+y = 1
 
-# definitive_peaks.append(g2)  # the last peak was often left out, because of the loop and this was the only solution i
+for g in probable_peaks[1:N - 1]:
+    g0 = probable_peaks[y-1]
+    g2 = probable_peaks[y + 1]
+
+    if (g2 - g) < interval or (g-g0) < interval:
+        if (g2 - g) < interval:
+            if denoised[g] > denoised[g2]:
+                definitive_peaks.append(g)
+        else:  # or (g - g0) < interval
+            if denoised[g] > denoised[g0]:
+                definitive_peaks.append(g)
+
+    else:
+        definitive_peaks.append(g)
+    y = y + 1
+definitive_peaks.append(probable_peaks[0])
+definitive_peaks.append(g2)  # the last peak was often left out, because of the loop and this was the only solution i
 # could think of. shouldnt be a problem if were doing continuous monitoring, so i guess this can be commented out
-definitive_peaks = probable_peaks
+# definitive_peaks = probable_peaks
 fig2.add_subplot(4, 1, 4)
 # display the plot of the clean signal, using red dots to identify the peaks
 plt.plot(denoised)
@@ -136,4 +152,5 @@ plt.plot(definitive_peaks, denoised[definitive_peaks], 'ro')  # cleanSig --> nda
 plt.title('Detected R-peaks')
 
 fig2.tight_layout(pad=4.0)
+
 plt.show()
